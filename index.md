@@ -6,8 +6,8 @@
 
 ## Homework II (November 1)
 
- is my report of second homework.
+[Here](/HM2/HW2.html) is my report of second homework.
 
 ## Homework III (November 29)
 
-is my report of third homework.
+[Here](/HW3/HW3.html) is my report of third homework.
