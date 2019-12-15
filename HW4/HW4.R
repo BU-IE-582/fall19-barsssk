@@ -2,9 +2,10 @@ rm(list = ls())
 
 require(data.table)
 require(zoo)
-setwd("C:/Users/baris.isik/Desktop/Master/IE 582/fall19-barsssk/HW4")
 
-source("functions.r")
+setwd("C:/Users/baris.isik/Desktop/Master/IE 582/fall19-barsssk/HW4")
+set.seed(seed = 7)
+# source("functions.r")
 
 Matches <- fread("matches.csv")
 Stats <- fread("stats.csv")
@@ -109,7 +110,7 @@ Features[,Match_No := seq_len(.N), by = .(T_id,Season)]
 
 # home performance of each team
 H_Features <- copy(Features[HomeAway == "H"])
-# shift all features by 1 since we  wont use current match stats
+# shift all features by 1 since we wont use current match stats
 shiftcols <- c("Score","Opponent_Score","GoalKeeperPerformance","AttackingPower")
 H_Features[,(shiftcols) := lapply(.SD,FUN = function(x){
   shift(x = x,n = 1,fill = NA)
@@ -258,9 +259,6 @@ require(gbm)
 GbmReg_Data <- copy(Matches[,c("RV_Score",FeatureCols),with = F])
 GbmCls_Data <- copy(Matches[,c("RV_CatScore",FeatureCols),with = F])
 GbmCls_Data[,RV_CatScore:=as.numeric(as.character(RV_CatScore)) ]
-i <- 100
-j <- 0.1
-k <- 3
 GbmCV <- NULL
 for(j in c(0.1,0.05)){
   for(k in c(3,5)){
@@ -271,7 +269,7 @@ for(j in c(0.1,0.05)){
     GbmCV <- rbind(GbmCV,Temp)
     
     Gbm_Cls <- gbm(formula = RV_CatScore~.,data = GbmCls_Data,
-                   distribution = "bernoulli",cv.folds = 5,n.trees = i,shrinkage = j,interaction.depth = k)
+                   distribution = "bernoulli",cv.folds = 5,n.trees = 1000,shrinkage = j,interaction.depth = k)
     Temp <- data.table(class = "Cls",ntrees = which.min(Gbm_Cls$cv.error),shrinkage = j,depth = k,error = min(Gbm_Cls$cv.error))
     GbmCV <- rbind(GbmCV,Temp)
   }
@@ -280,6 +278,7 @@ for(j in c(0.1,0.05)){
 setorder(GbmCV,class,error)
 GbmCV[,Row := seq_len(.N),by = class]
 GbmCV <- GbmCV[Row == 1]
+GbmCV[,Row := NULL]
 
 #### 3 ####
 Matches[,`:=`(Rand_1 = runif(n = nrow(Matches),min = 0,max = 100),
@@ -291,7 +290,6 @@ Matches[,`:=`(TrainTest_1 = ifelse(Rand_1 < 25,"Test","Train"),
               TrainTest_3 = ifelse(Rand_3 < 25,"Test","Train"),
               Rand_1 = NULL, Rand_2 = NULL, Rand_3 = NULL)]
 
-i <- 1
 Results_Reg <- NULL
 Results_Cls <- NULL
 
@@ -423,8 +421,8 @@ for(i in 1:3){
   temp <- data.table(run = i,method = "lasso",data = "train",missclassification = error)
   Results_Cls <- rbind(Results_Cls,temp)
   
-  y_cls <- Train_Cls_data[,RV_CatScore]
-  x_cls <- model.matrix(~.,data=Train_Cls_data[,2:ncol(Train_Cls_data)])
+  y_cls <- Test_Cls_data[,RV_CatScore]
+  x_cls <- model.matrix(~.,data=Test_Cls_data[,2:ncol(Train_Cls_data)])
   
   error <- 1- cls_accuracy(x = y_cls, y = ifelse(predict(object = fit_lasso_cls,newx = x_cls,type = "response")>0.5,1,0))
   temp <- data.table(run = i,method = "lasso",data = "test",missclassification = error)
